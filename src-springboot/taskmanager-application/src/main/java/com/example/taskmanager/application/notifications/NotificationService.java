@@ -18,6 +18,11 @@ public interface NotificationService {
     void sendSms(Task task);
 
     /**
+     * @throws IllegalArgumentException if task is null
+     */
+    void sendPush(Task task);
+
+    /**
      * Sends both an email and an SMS notification.
      *
      * @throws IllegalArgumentException if task is null

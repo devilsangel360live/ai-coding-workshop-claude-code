@@ -3,16 +3,18 @@ package com.example.taskmanager.application.notifications;
 import com.example.taskmanager.domain.tasks.Task;
 
 /**
- * Delivers task notifications through the email and SMS ports.
+ * Delivers task notifications through the email, SMS and push ports.
  */
 public class DefaultNotificationService implements NotificationService {
 
     private final EmailSender emailSender;
     private final SmsSender smsSender;
+    private final PushSender pushSender;
 
-    public DefaultNotificationService(EmailSender emailSender, SmsSender smsSender) {
+    public DefaultNotificationService(EmailSender emailSender, SmsSender smsSender, PushSender pushSender) {
         this.emailSender = emailSender;
         this.smsSender = smsSender;
+        this.pushSender = pushSender;
     }
 
     @Override
@@ -25,6 +27,12 @@ public class DefaultNotificationService implements NotificationService {
     public void sendSms(Task task) {
         requireTask(task);
         smsSender.send(task);
+    }
+
+    @Override
+    public void sendPush(Task task) {
+        requireTask(task);
+        pushSender.send(task);
     }
 
     @Override

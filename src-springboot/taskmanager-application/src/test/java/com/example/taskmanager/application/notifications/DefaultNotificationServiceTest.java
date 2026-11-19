@@ -26,6 +26,9 @@ class DefaultNotificationServiceTest {
     @Mock
     private SmsSender smsSender;
 
+    @Mock
+    private PushSender pushSender;
+
     @InjectMocks
     private DefaultNotificationService notificationService;
 
@@ -76,6 +79,31 @@ class DefaultNotificationServiceTest {
             // Act & Assert
             assertThrows(IllegalArgumentException.class, () -> notificationService.sendSms(null));
             verifyNoInteractions(emailSender, smsSender);
+        }
+    }
+
+    @Nested
+    @DisplayName("Send Push Operations")
+    class SendPushOperations {
+
+        @Test
+        void sendPush_validTask_sendsPushOnly() {
+            // Arrange
+            var task = Task.create("Review pull request");
+
+            // Act
+            notificationService.sendPush(task);
+
+            // Assert
+            verify(pushSender, times(1)).send(task);
+            verifyNoInteractions(emailSender, smsSender);
+        }
+
+        @Test
+        void sendPush_nullTask_throwsIllegalArgumentException() {
+            // Act & Assert
+            assertThrows(IllegalArgumentException.class, () -> notificationService.sendPush(null));
+            verifyNoInteractions(emailSender, smsSender, pushSender);
         }
     }
 
