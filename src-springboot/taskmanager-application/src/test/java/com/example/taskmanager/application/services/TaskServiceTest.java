@@ -1,6 +1,7 @@
 package com.example.taskmanager.application.services;
 
 import com.example.taskmanager.application.services.TaskService.TaskNotFoundException;
+import com.example.taskmanager.domain.tasks.Priority;
 import com.example.taskmanager.domain.tasks.Task;
 import com.example.taskmanager.domain.tasks.TaskId;
 import com.example.taskmanager.domain.tasks.TaskRepository;
@@ -9,10 +10,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -87,6 +90,50 @@ class TaskServiceTest {
         void shouldThrowExceptionWhenCreatingTaskWithBlankTitle() {
             // Act & Assert
             assertThrows(IllegalArgumentException.class, () -> taskService.createTask("   "));
+            verify(taskRepository, never()).save(any(Task.class));
+        }
+
+        @Test
+        @DisplayName("should create task with priority and due date")
+        void shouldCreateTaskWithPriorityAndDueDate() {
+            // Arrange
+            LocalDateTime dueDate = LocalDateTime.now().plusDays(7);
+            when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // Act
+            Task result = taskService.createTask("Ship release", "Version 2.0", "high", dueDate);
+
+            // Assert
+            ArgumentCaptor<Task> saved = ArgumentCaptor.forClass(Task.class);
+            verify(taskRepository, times(1)).save(saved.capture());
+            assertEquals(Priority.HIGH, saved.getValue().getPriority());
+            assertEquals(dueDate, saved.getValue().getDueDate());
+            assertSame(saved.getValue(), result);
+        }
+
+        @Test
+        @DisplayName("should default priority to MEDIUM when priority is null")
+        void shouldDefaultPriorityWhenPriorityIsNull() {
+            // Arrange
+            when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // Act
+            Task result = taskService.createTask("Ship release", null, null, null);
+
+            // Assert
+            assertEquals(Priority.MEDIUM, result.getPriority());
+            assertNull(result.getDueDate());
+            verify(taskRepository, times(1)).save(any(Task.class));
+        }
+
+        @Test
+        @DisplayName("should throw exception when priority is unknown")
+        void shouldThrowExceptionWhenPriorityIsUnknown() {
+            // Act & Assert
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> taskService.createTask("Ship release", null, "URGENT", null)
+            );
             verify(taskRepository, never()).save(any(Task.class));
         }
 

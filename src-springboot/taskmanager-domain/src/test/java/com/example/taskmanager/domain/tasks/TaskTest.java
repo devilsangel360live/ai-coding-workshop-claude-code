@@ -66,7 +66,7 @@ class TaskTest {
             LocalDateTime completedAt = null;
 
             // Act
-            Task task = Task.reconstitute(id, title, description, status, createdAt, completedAt);
+            Task task = Task.reconstitute(id, title, description, status, Priority.MEDIUM, null, createdAt, completedAt);
 
             // Assert
             assertEquals(id, task.getId());
@@ -562,6 +562,89 @@ class TaskTest {
             Task cancelledTask = Task.create("Task");
             cancelledTask.cancel();
             assertNull(cancelledTask.getCompletedAt());
+        }
+    }
+
+    @Nested
+    @DisplayName("Priority and Due Date")
+    class PriorityAndDueDate {
+
+        @Test
+        @DisplayName("should default priority to MEDIUM and due date to null when created with title only")
+        void shouldDefaultPriorityAndDueDateWhenCreatedWithTitleOnly() {
+            // Act
+            Task task = Task.create("Quick task");
+
+            // Assert
+            assertEquals(Priority.MEDIUM, task.getPriority());
+            assertNull(task.getDueDate());
+        }
+
+        @Test
+        @DisplayName("should default priority to MEDIUM and due date to null when created with title and description")
+        void shouldDefaultPriorityAndDueDateWhenCreatedWithTitleAndDescription() {
+            // Act
+            Task task = Task.create("Write docs", "API reference");
+
+            // Assert
+            assertEquals(Priority.MEDIUM, task.getPriority());
+            assertNull(task.getDueDate());
+        }
+
+        @Test
+        @DisplayName("should create task with priority and future due date")
+        void shouldCreateTaskWithPriorityAndDueDate() {
+            // Arrange
+            LocalDateTime dueDate = LocalDateTime.now().plusDays(7);
+
+            // Act
+            Task task = Task.create("Ship release", "Version 2.0", Priority.HIGH, dueDate);
+
+            // Assert
+            assertEquals(Priority.HIGH, task.getPriority());
+            assertEquals(dueDate, task.getDueDate());
+        }
+
+        @Test
+        @DisplayName("should default priority to MEDIUM when created with null priority")
+        void shouldDefaultPriorityWhenNullPriorityGiven() {
+            // Act
+            Task task = Task.create("Ship release", "Version 2.0", null, null);
+
+            // Assert
+            assertEquals(Priority.MEDIUM, task.getPriority());
+            assertNull(task.getDueDate());
+        }
+
+        @Test
+        @DisplayName("should throw exception when due date is in the past")
+        void shouldThrowExceptionWhenDueDateIsInPast() {
+            // Arrange
+            LocalDateTime pastDate = LocalDateTime.now().minusDays(1);
+
+            // Act & Assert
+            IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> Task.create("Ship release", "Version 2.0", Priority.HIGH, pastDate)
+            );
+            assertTrue(exception.getMessage().contains("future"), "Error message should say the due date must be in the future");
+        }
+
+        @Test
+        @DisplayName("should reconstitute task with priority and past due date")
+        void shouldReconstituteTaskWithPriorityAndPastDueDate() {
+            // Arrange
+            LocalDateTime overdue = LocalDateTime.now().minusDays(3);
+
+            // Act
+            Task task = Task.reconstitute(
+                TaskId.newId(), "Overdue task", null, TaskStatus.PENDING,
+                Priority.CRITICAL, overdue, LocalDateTime.now().minusDays(10), null
+            );
+
+            // Assert
+            assertEquals(Priority.CRITICAL, task.getPriority());
+            assertEquals(overdue, task.getDueDate());
         }
     }
 }

@@ -34,6 +34,12 @@ public class TaskEntity {
     
     @Column(name = "status", nullable = false, length = 50)
     private String status;
+
+    @Column(name = "priority", nullable = false, length = 20)
+    private String priority;
+
+    @Column(name = "due_date")
+    private LocalDateTime dueDate;
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

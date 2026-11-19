@@ -81,7 +81,8 @@ public class TaskController {
     public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody CreateTaskRequest request) {
         logger.debug("Creating new task with title: {}", request.title());
         
-        Task task = taskService.createTask(request.title(), request.description());
+        Task task = taskService.createTask(
+                request.title(), request.description(), request.priority(), request.dueDate());
         TaskResponse response = TaskResponse.from(task);
         
         logger.info("Created task with ID: {}", task.getId().value());

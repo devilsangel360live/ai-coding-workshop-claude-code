@@ -1,5 +1,6 @@
 package com.example.taskmanager.application.services;
 
+import com.example.taskmanager.domain.tasks.Priority;
 import com.example.taskmanager.domain.tasks.Task;
 import com.example.taskmanager.domain.tasks.TaskId;
 import com.example.taskmanager.domain.tasks.TaskRepository;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,6 +53,23 @@ public class TaskService {
     @Transactional
     public Task createTask(String title, String description) {
         Task task = Task.create(title, description);
+        return taskRepository.save(task);
+    }
+
+    /**
+     * Create a new task with a priority and an optional due date.
+     *
+     * @param title the task title
+     * @param description the task description (optional)
+     * @param priority the priority name, case-insensitive (optional, defaults to MEDIUM)
+     * @param dueDate the due date (optional, must be in the future when set)
+     * @return the created task
+     * @throws IllegalArgumentException if title, priority or due date is invalid
+     */
+    @Transactional
+    public Task createTask(String title, String description, String priority, LocalDateTime dueDate) {
+        Priority parsedPriority = priority == null ? null : Priority.fromString(priority);
+        Task task = Task.create(title, description, parsedPriority, dueDate);
         return taskRepository.save(task);
     }
     

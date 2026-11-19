@@ -1,5 +1,6 @@
 package com.example.taskmanager.infrastructure.persistence.mappers;
 
+import com.example.taskmanager.domain.tasks.Priority;
 import com.example.taskmanager.domain.tasks.Task;
 import com.example.taskmanager.domain.tasks.TaskId;
 import com.example.taskmanager.domain.tasks.TaskStatus;
@@ -33,6 +34,8 @@ public final class TaskMapper {
         entity.setTitle(task.getTitle());
         entity.setDescription(task.getDescription());
         entity.setStatus(task.getStatus().name());
+        entity.setPriority(task.getPriority().name());
+        entity.setDueDate(task.getDueDate());
         entity.setCreatedAt(task.getCreatedAt());
         entity.setCompletedAt(task.getCompletedAt());
         
@@ -53,12 +56,16 @@ public final class TaskMapper {
         
         TaskId taskId = TaskId.of(entity.getId());
         TaskStatus status = TaskStatus.valueOf(entity.getStatus());
-        
+        // Rows saved before priorities existed have none; the domain defaults them to MEDIUM
+        Priority priority = entity.getPriority() == null ? null : Priority.fromString(entity.getPriority());
+
         return Task.reconstitute(
             taskId,
             entity.getTitle(),
             entity.getDescription(),
             status,
+            priority,
+            entity.getDueDate(),
             entity.getCreatedAt(),
             entity.getCompletedAt()
         );
