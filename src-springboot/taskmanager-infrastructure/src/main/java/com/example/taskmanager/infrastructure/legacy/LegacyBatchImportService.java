@@ -21,8 +21,9 @@ public class LegacyBatchImportService {
         var results = new ArrayList<String>();
 
         for (var record : records) {
-            if (processor.chk(record.data(), record.type())) {
-                String result = processor.processTask(record.id(), record.data(), record.type(), true);
+            var type = TransformType.fromCode(record.type());
+            if (processor.canProcess(record.data(), type)) {
+                String result = processor.processTask(record.id(), record.data(), type, true);
                 results.add(result);
             }
         }
@@ -30,6 +31,6 @@ public class LegacyBatchImportService {
         return results;
     }
 
-    public int getProcessedCount() { return processor.getCount(); }
-    public String getLastProcessed() { return processor.getLast(); }
+    public int getProcessedCount() { return processor.getProcessedCount(); }
+    public String getLastProcessed() { return processor.getLastResult(); }
 }
