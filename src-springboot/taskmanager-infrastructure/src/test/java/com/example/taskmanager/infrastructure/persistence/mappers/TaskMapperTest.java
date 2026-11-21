@@ -1,5 +1,6 @@
 package com.example.taskmanager.infrastructure.persistence.mappers;
 
+import com.example.taskmanager.domain.tasks.Priority;
 import com.example.taskmanager.domain.tasks.Task;
 import com.example.taskmanager.domain.tasks.TaskId;
 import com.example.taskmanager.domain.tasks.TaskStatus;
@@ -110,6 +111,21 @@ class TaskMapperTest {
         }
 
         @Test
+        @DisplayName("should map priority and due date")
+        void shouldMapPriorityAndDueDate() {
+            // Arrange
+            LocalDateTime dueDate = LocalDateTime.now().plusDays(7);
+            Task task = Task.create("Ship release", "Version 2.0", Priority.HIGH, dueDate);
+
+            // Act
+            TaskEntity entity = mapper.toEntity(task);
+
+            // Assert
+            assertEquals("HIGH", entity.getPriority());
+            assertEquals(dueDate, entity.getDueDate());
+        }
+
+        @Test
         @DisplayName("should return null for null task")
         void shouldReturnNullForNullTask() {
             // Act
@@ -212,6 +228,38 @@ class TaskMapperTest {
         }
 
         @Test
+        @DisplayName("should map priority and overdue due date")
+        void shouldMapPriorityAndOverdueDueDate() {
+            // Arrange
+            LocalDateTime overdue = LocalDateTime.now().minusDays(3);
+            TaskEntity entity = createEntity(TaskStatus.PENDING);
+            entity.setPriority("CRITICAL");
+            entity.setDueDate(overdue);
+
+            // Act
+            Task task = mapper.toDomain(entity);
+
+            // Assert
+            assertEquals(Priority.CRITICAL, task.getPriority());
+            assertEquals(overdue, task.getDueDate());
+        }
+
+        @Test
+        @DisplayName("should default priority to MEDIUM when entity has no priority")
+        void shouldDefaultPriorityWhenEntityHasNoPriority() {
+            // Arrange
+            TaskEntity entity = createEntity(TaskStatus.PENDING);
+            entity.setPriority(null);
+
+            // Act
+            Task task = mapper.toDomain(entity);
+
+            // Assert
+            assertEquals(Priority.MEDIUM, task.getPriority());
+            assertNull(task.getDueDate());
+        }
+
+        @Test
         @DisplayName("should return null for null entity")
         void shouldReturnNullForNullEntity() {
             // Act
@@ -268,6 +316,22 @@ class TaskMapperTest {
             // Assert
             assertEquals(TaskStatus.COMPLETED, roundTripTask.getStatus());
             assertNotNull(roundTripTask.getCompletedAt());
+        }
+
+        @Test
+        @DisplayName("should preserve priority and due date in round-trip")
+        void shouldPreservePriorityAndDueDateInRoundTrip() {
+            // Arrange
+            LocalDateTime dueDate = LocalDateTime.now().plusDays(7);
+            Task originalTask = Task.create("Ship release", "Version 2.0", Priority.LOW, dueDate);
+
+            // Act
+            TaskEntity entity = mapper.toEntity(originalTask);
+            Task roundTripTask = mapper.toDomain(entity);
+
+            // Assert
+            assertEquals(Priority.LOW, roundTripTask.getPriority());
+            assertEquals(dueDate, roundTripTask.getDueDate());
         }
     }
 }

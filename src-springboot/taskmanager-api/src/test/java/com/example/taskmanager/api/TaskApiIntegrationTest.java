@@ -311,4 +311,54 @@ class TaskApiIntegrationTest {
                 .andExpect(jsonPath("$.title").value("Description Update Task"))
                 .andExpect(jsonPath("$.description").value("Updated Description"));
     }
+
+    @Test
+    @DisplayName("Should create task with priority and due date")
+    void shouldCreateTaskWithPriorityAndDueDate() throws Exception {
+        String request = """
+                {"title": "Ship release", "description": "Version 2.0",
+                 "priority": "HIGH", "dueDate": "2099-12-31T17:00:00"}
+                """;
+
+        mockMvc.perform(post("/api/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.priority").value("HIGH"))
+                .andExpect(jsonPath("$.dueDate").value("2099-12-31T17:00:00"));
+    }
+
+    @Test
+    @DisplayName("Should default priority to MEDIUM when omitted")
+    void shouldDefaultPriorityToMediumWhenOmitted() throws Exception {
+        String request = """
+                {"title": "Quick task"}
+                """;
+
+        mockMvc.perform(post("/api/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.priority").value("MEDIUM"))
+                .andExpect(jsonPath("$.dueDate").doesNotExist()); // nulls are omitted (non_null inclusion)
+    }
+
+    @Test
+    @DisplayName("Should reject unknown priority with 400 ProblemDetail")
+    void shouldRejectUnknownPriority() throws Exception {
+        String request = """
+                {"title": "Ship release", "priority": "URGENT"}
+                """;
+
+        mockMvc.perform(post("/api/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Invalid Input"))
+                .andExpect(jsonPath("$.detail").value(containsString("Valid values: LOW, MEDIUM, HIGH, CRITICAL")));
+
+        mockMvc.perform(get("/api/tasks"))
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
 }

@@ -19,14 +19,18 @@ public final class Task {
     private String title;
     private String description;
     private TaskStatus status;
+    private final Priority priority;
+    private final LocalDateTime dueDate;
     private final LocalDateTime createdAt;
     private LocalDateTime completedAt;
-    
+
     // Private constructor - use factory methods
-    private Task(TaskId id, String title, String description) {
+    private Task(TaskId id, String title, String description, Priority priority, LocalDateTime dueDate) {
         this.id = Objects.requireNonNull(id, "Task ID cannot be null");
         this.title = validateTitle(title);
         this.description = description; // Description is optional, can be null
+        this.priority = priority == null ? Priority.MEDIUM : priority;
+        this.dueDate = dueDate; // Due date is optional, can be null
         this.status = TaskStatus.PENDING;
         this.createdAt = LocalDateTime.now();
         this.completedAt = null;
@@ -41,7 +45,24 @@ public final class Task {
      * @throws IllegalArgumentException if title is null or blank
      */
     public static Task create(String title, String description) {
-        return new Task(TaskId.newId(), title, description);
+        return create(title, description, Priority.MEDIUM, null);
+    }
+
+    /**
+     * Factory method to create a new Task with a priority and an optional due date.
+     *
+     * @param title the task title (required, non-blank)
+     * @param description the task description (optional)
+     * @param priority the task priority (optional, defaults to MEDIUM)
+     * @param dueDate the due date (optional, must be in the future when set)
+     * @return a new Task instance
+     * @throws IllegalArgumentException if title is null or blank, or dueDate is not in the future
+     */
+    public static Task create(String title, String description, Priority priority, LocalDateTime dueDate) {
+        if (dueDate != null && !dueDate.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Due date must be in the future: " + dueDate);
+        }
+        return new Task(TaskId.newId(), title, description, priority, dueDate);
     }
     
     /**
@@ -62,6 +83,8 @@ public final class Task {
      * @param title the task title
      * @param description the task description
      * @param status the task status
+     * @param priority the task priority (null defaults to MEDIUM)
+     * @param dueDate the due date (may be null or in the past: persisted tasks can be overdue)
      * @param createdAt when the task was created
      * @param completedAt when the task was completed (may be null)
      * @return a Task instance
@@ -71,9 +94,11 @@ public final class Task {
             String title,
             String description,
             TaskStatus status,
+            Priority priority,
+            LocalDateTime dueDate,
             LocalDateTime createdAt,
             LocalDateTime completedAt) {
-        Task task = new Task(id, title, description);
+        Task task = new Task(id, title, description, priority, dueDate);
         task.status = status;
         // Note: createdAt from constructor, but we need to override it
         // In a real implementation, we'd need to handle this better
@@ -211,6 +236,14 @@ public final class Task {
         return title;
     }
     
+    public Priority getPriority() {
+        return priority;
+    }
+
+    public LocalDateTime getDueDate() {
+        return dueDate;
+    }
+
     public String getDescription() {
         return description;
     }

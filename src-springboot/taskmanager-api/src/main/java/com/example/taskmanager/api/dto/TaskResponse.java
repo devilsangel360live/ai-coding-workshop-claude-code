@@ -16,6 +16,8 @@ import java.util.UUID;
  * @param title the task title
  * @param description the task description (nullable)
  * @param status the task status (PENDING, IN_PROGRESS, COMPLETED, CANCELLED)
+ * @param priority the task priority (LOW, MEDIUM, HIGH, CRITICAL)
+ * @param dueDate the due date (nullable)
  * @param createdAt when the task was created
  * @param completedAt when the task was completed (nullable)
  */
@@ -24,6 +26,8 @@ public record TaskResponse(
     String title,
     String description,
     String status,
+    String priority,
+    LocalDateTime dueDate,
     LocalDateTime createdAt,
     LocalDateTime completedAt
 ) {
@@ -41,6 +45,8 @@ public record TaskResponse(
             task.getTitle(),
             task.getDescription(),
             task.getStatus().name(),
+            task.getPriority().name(),
+            task.getDueDate(),
             task.getCreatedAt(),
             task.getCompletedAt()
         );
