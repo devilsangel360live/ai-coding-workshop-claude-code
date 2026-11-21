@@ -11,10 +11,14 @@ import java.nio.file.Path;
  * Throws on content that isn't valid UTF-16 (for example a lone surrogate) rather than writing a replacement character.
  */
 @Component
-public class FileTaskOutputWriter implements TaskOutputWriter {
+public class TaskResultFileWriter implements TaskOutputWriter {
 
     @Override
     public void write(int id, String content) throws IOException {
-        Files.writeString(Path.of("task_" + id + ".txt"), content);
+        Files.writeString(pathFor(id), content);
+    }
+
+    static Path pathFor(int id) {
+        return Path.of("task_" + id + ".txt");
     }
 }

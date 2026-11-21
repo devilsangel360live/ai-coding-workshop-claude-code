@@ -1,7 +1,6 @@
-import com.example.taskmanager.infrastructure.legacy.LegacyBatchImportService;
+package com.example.taskmanager.infrastructure.legacy;
+
 import com.example.taskmanager.infrastructure.legacy.LegacyBatchImportService.ImportRecord;
-import com.example.taskmanager.infrastructure.legacy.FileTaskOutputWriter;
-import com.example.taskmanager.infrastructure.legacy.LegacyTaskProcessor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,8 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -32,31 +29,22 @@ class LegacyBatchImportServiceTest {
 
     private LegacyTaskProcessor processor;
     private LegacyBatchImportService service;
-    private final List<Path> createdPaths = new ArrayList<>();
+    private final TaskOutputFiles outputFiles = new TaskOutputFiles();
 
     @BeforeEach
     void setUp() {
-        processor = new LegacyTaskProcessor(new FileTaskOutputWriter());
+        processor = new LegacyTaskProcessor(new TaskResultFileWriter());
         service = new LegacyBatchImportService(processor);
     }
 
     @AfterEach
     void deleteCreatedFiles() throws IOException {
-        for (var path : createdPaths) {
-            Files.deleteIfExists(path);
-        }
-    }
-
-    private Path outputFileFor(int id) throws IOException {
-        var path = Path.of("task_" + id + ".txt");
-        Files.deleteIfExists(path);
-        createdPaths.add(path);
-        return path;
+        outputFiles.deleteAll();
     }
 
     @Test
     void importBatch_validRecords_processesEachWithFormatFlagInOrder() throws IOException {
-        outputFileFor(991_001);
+        outputFiles.track(991_001);
         var records = List.of(
                 new ImportRecord(991_001, "Hello World", TYPE_FORMAT),
                 new ImportRecord(991_002, "Hello World", TYPE_SENTENCE));
@@ -70,7 +58,7 @@ class LegacyBatchImportServiceTest {
 
     @Test
     void importBatch_typeOneRecord_writesFile() throws IOException {
-        var file = outputFileFor(991_003);
+        var file = outputFiles.track(991_003);
 
         service.importBatch(List.of(new ImportRecord(991_003, "Export Me", TYPE_FORMAT)));
 
@@ -79,7 +67,7 @@ class LegacyBatchImportServiceTest {
 
     @Test
     void importBatch_typeTwoRecord_writesNoFile() throws IOException {
-        var file = outputFileFor(991_004);
+        var file = outputFiles.track(991_004);
 
         service.importBatch(List.of(new ImportRecord(991_004, "No File", TYPE_SENTENCE)));
 

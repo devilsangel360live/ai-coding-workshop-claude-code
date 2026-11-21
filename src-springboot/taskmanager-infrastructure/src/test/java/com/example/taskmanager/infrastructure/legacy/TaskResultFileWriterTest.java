@@ -1,4 +1,5 @@
-import com.example.taskmanager.infrastructure.legacy.FileTaskOutputWriter;
+package com.example.taskmanager.infrastructure.legacy;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -10,16 +11,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class FileTaskOutputWriterTest {
+class TaskResultFileWriterTest {
 
     private static final int ID = 992_001;
     private static final Path OUTPUT_FILE = Path.of("task_" + ID + ".txt");
 
-    private final FileTaskOutputWriter writer = new FileTaskOutputWriter();
+    private final TaskResultFileWriter writer = new TaskResultFileWriter();
 
     @AfterEach
     void deleteOutputFile() throws IOException {
         Files.deleteIfExists(OUTPUT_FILE);
+    }
+
+    @Test
+    void pathFor_id_returnsTaskFileInWorkingDirectory() {
+        var path = TaskResultFileWriter.pathFor(ID);
+
+        assertEquals(OUTPUT_FILE, path);
     }
 
     @Test
@@ -43,6 +51,7 @@ class FileTaskOutputWriterTest {
         var loneHighSurrogate = "abc" + "😀".charAt(0);
 
         assertThrows(IOException.class, () -> writer.write(ID, loneHighSurrogate));
+
         assertFalse(Files.exists(OUTPUT_FILE));
     }
 

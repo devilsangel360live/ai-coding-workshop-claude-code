@@ -21,9 +21,8 @@ public class LegacyBatchImportService {
         var results = new ArrayList<String>();
 
         for (var record : records) {
-            var type = TransformType.fromCode(record.type());
-            if (processor.canProcess(record.data(), type)) {
-                String result = processor.processTask(record.id(), record.data(), type, true);
+            if (processor.canProcess(record.data(), record.type())) {
+                var result = processor.processTask(record.id(), record.data(), record.type(), true);
                 results.add(result);
             }
         }

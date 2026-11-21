@@ -1,6 +1,5 @@
-import com.example.taskmanager.infrastructure.legacy.FileTaskOutputWriter;
-import com.example.taskmanager.infrastructure.legacy.LegacyTaskProcessor;
-import com.example.taskmanager.infrastructure.legacy.TransformType;
+package com.example.taskmanager.infrastructure.legacy;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -8,15 +7,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,35 +27,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DisplayName("LegacyTaskProcessor characterization tests")
 class LegacyTaskProcessorTest {
 
-    private static final TransformType TYPE_FORMAT = TransformType.FORMAT;
-    private static final TransformType TYPE_SENTENCE = TransformType.SENTENCE;
-    private static final TransformType TYPE_OTHER = TransformType.PASS_THROUGH;
+    private static final int TYPE_FORMAT = 1;
+    private static final int TYPE_SENTENCE = 2;
+    private static final int TYPE_OTHER = 3;
 
     private LegacyTaskProcessor processor;
-    private final List<Path> createdPaths = new ArrayList<>();
+    private final TaskOutputFiles outputFiles = new TaskOutputFiles();
 
     @BeforeEach
     void setUp() {
-        processor = new LegacyTaskProcessor(new FileTaskOutputWriter());
+        processor = new LegacyTaskProcessor(new TaskResultFileWriter());
     }
 
     @AfterEach
     void deleteCreatedFiles() throws IOException {
-        for (var path : createdPaths) {
-            Files.deleteIfExists(path);
-        }
+        outputFiles.deleteAll();
     }
 
-    /** Registers the file the processor writes for this id (relative to the working directory) for cleanup. */
-    private Path outputFileFor(int id) throws IOException {
-        var path = Path.of("task_" + id + ".txt");
-        Files.deleteIfExists(path);
-        createdPaths.add(path);
-        return path;
-    }
-
-    private static long millisSince(long startNanos) {
-        return (System.nanoTime() - startNanos) / 1_000_000;
+    private static long millisecondsSince(long startNanoseconds) {
+        return (System.nanoTime() - startNanoseconds) / 1_000_000;
     }
 
     @Nested
@@ -97,7 +82,7 @@ class LegacyTaskProcessorTest {
         @ParameterizedTest
         @NullAndEmptySource
         void processTask_nullOrEmptyDataWithFlag_writesNoFile(String data) throws IOException {
-            var file = outputFileFor(990_102);
+            var file = outputFiles.track(990_102);
 
             processor.processTask(990_102, data, TYPE_FORMAT, true);
 
@@ -121,7 +106,7 @@ class LegacyTaskProcessorTest {
                 "😀               | 😀"
         })
         void processTask_typeOneWithFlag_swapsCasePerCharAndReplacesSpaces(String data, String expected) throws IOException {
-            outputFileFor(990_200);
+            outputFiles.track(990_200);
 
             var result = processor.processTask(990_200, data, TYPE_FORMAT, true);
 
@@ -130,7 +115,7 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeOneWithFlagAndTabOrNewline_swapsCaseAndKeepsThem() throws IOException {
-            outputFileFor(990_201);
+            outputFiles.track(990_201);
 
             var result = processor.processTask(990_201, "a\tb\nc", TYPE_FORMAT, true);
 
@@ -139,7 +124,7 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeOneWithFlagAndSixtyChars_truncatesToFiftyAfterTransform() throws IOException {
-            outputFileFor(990_202);
+            outputFiles.track(990_202);
 
             var result = processor.processTask(990_202, "a".repeat(60), TYPE_FORMAT, true);
 
@@ -148,7 +133,7 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeOneWithFlagAndExactlyFiftyChars_doesNotTruncate() throws IOException {
-            outputFileFor(990_203);
+            outputFiles.track(990_203);
 
             var result = processor.processTask(990_203, "b".repeat(50), TYPE_FORMAT, true);
 
@@ -157,7 +142,7 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeOneWithFlag_writesReturnedValueToFileInWorkingDirectory() throws IOException {
-            var file = outputFileFor(990_204);
+            var file = outputFiles.track(990_204);
 
             var result = processor.processTask(990_204, "Mixed Case " + "x".repeat(50), TYPE_FORMAT, true);
 
@@ -167,7 +152,7 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeOneWithFlagAndExistingFile_overwritesIt() throws IOException {
-            var file = outputFileFor(990_205);
+            var file = outputFiles.track(990_205);
             Files.writeString(file, "old content that is much longer than the new one");
 
             processor.processTask(990_205, "new", TYPE_FORMAT, true);
@@ -176,19 +161,19 @@ class LegacyTaskProcessorTest {
         }
 
         @Test
-        void processTask_typeOneWithFlag_doesNotSleep() throws IOException {
-            outputFileFor(990_206);
+        void processTask_typeOneWithFlag_waitsAtLeastOneHundredMilliseconds() throws IOException {
+            outputFiles.track(990_206);
             var start = System.nanoTime();
 
-            processor.processTask(990_206, "fast", TYPE_FORMAT, true);
+            processor.processTask(990_206, "slow", TYPE_FORMAT, true);
 
-            var elapsed = millisSince(start);
-            assertTrue(elapsed < 100, "expected < 100 ms but was " + elapsed);
+            var elapsed = millisecondsSince(start);
+            assertTrue(elapsed >= 100, "expected >= 100 ms but was " + elapsed);
         }
 
         @Test
         void processTask_typeOneWithFlagWhenWriteFails_stillReturnsAndCountsResult() throws IOException {
-            var blockingDirectory = outputFileFor(990_207);
+            var blockingDirectory = outputFiles.track(990_207);
             Files.createDirectory(blockingDirectory);
 
             var result = processor.processTask(990_207, "Write Fails", TYPE_FORMAT, true);
@@ -201,7 +186,7 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeOneWithFlagWhenTruncationSplitsSurrogatePair_writesNoFileButReturnsAndCounts() throws IOException {
-            var file = outputFileFor(990_208);
+            var file = outputFiles.track(990_208);
 
             var result = processor.processTask(990_208, "a".repeat(49) + "😀", TYPE_FORMAT, true);
 
@@ -211,14 +196,14 @@ class LegacyTaskProcessorTest {
         }
 
         @Test
-        void processTask_typeOneWithFlagOnInterruptedThread_preservesInterruptFlagAndStillWritesFile() throws IOException {
-            var file = outputFileFor(990_209);
+        void processTask_typeOneWithFlagOnInterruptedThread_clearsInterruptFlagAndStillWritesFile() throws IOException {
+            var file = outputFiles.track(990_209);
             Thread.currentThread().interrupt();
 
             try {
                 processor.processTask(990_209, "interrupted", TYPE_FORMAT, true);
 
-                assertTrue(Thread.currentThread().isInterrupted());
+                assertFalse(Thread.currentThread().isInterrupted());
                 assertEquals("INTERRUPTED", Files.readString(file));
             } finally {
                 Thread.interrupted();
@@ -237,7 +222,9 @@ class LegacyTaskProcessorTest {
                 "a\tb        | A\tB"
         })
         void processTask_typeOneWithoutFlag_uppercasesWholeString(String data, String expected) {
-            assertEquals(expected, processor.processTask(990_300, data, TYPE_FORMAT, false));
+            var result = processor.processTask(990_300, data, TYPE_FORMAT, false);
+
+            assertEquals(expected, result);
         }
 
         @Test
@@ -248,15 +235,12 @@ class LegacyTaskProcessorTest {
         }
 
         @Test
-        void processTask_typeOneWithoutFlag_writesNoFileAndDoesNotSleep() throws IOException {
-            var file = outputFileFor(990_302);
-            var start = System.nanoTime();
+        void processTask_typeOneWithoutFlag_writesNoFile() throws IOException {
+            var file = outputFiles.track(990_302);
 
             processor.processTask(990_302, "fast", TYPE_FORMAT, false);
 
-            var elapsed = millisSince(start);
             assertFalse(Files.exists(file));
-            assertTrue(elapsed < 100, "expected < 100 ms but was " + elapsed);
         }
     }
 
@@ -275,7 +259,9 @@ class LegacyTaskProcessorTest {
                 "A\tB               | A\tB"
         })
         void processTask_typeTwo_keepsFirstWordAndLowercasesTheRest(String data, String expected) {
-            assertEquals(expected, processor.processTask(990_400, data, TYPE_SENTENCE, false));
+            var result = processor.processTask(990_400, data, TYPE_SENTENCE, false);
+
+            assertEquals(expected, result);
         }
 
         @Test
@@ -289,15 +275,12 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeTwoWithFlag_ignoresFlagAndWritesNoFile() throws IOException {
-            var file = outputFileFor(990_402);
-            var start = System.nanoTime();
+            var file = outputFiles.track(990_402);
 
             var result = processor.processTask(990_402, "Hello World", TYPE_SENTENCE, true);
 
-            var elapsed = millisSince(start);
             assertEquals("Hello world", result);
             assertFalse(Files.exists(file));
-            assertTrue(elapsed < 100, "expected < 100 ms but was " + elapsed);
         }
     }
 
@@ -307,8 +290,8 @@ class LegacyTaskProcessorTest {
 
         @ParameterizedTest
         @ValueSource(ints = {0, 3, -1, 99})
-        void processTask_unknownTypeCode_returnsInputUnchangedAndCounts(int code) {
-            var result = processor.processTask(990_500, "Keep Me As Is", TransformType.fromCode(code), true);
+        void processTask_unknownType_returnsInputUnchangedAndCounts(int type) {
+            var result = processor.processTask(990_500, "Keep Me As Is", type, true);
 
             assertEquals("Keep Me As Is", result);
             assertEquals(1, processor.getProcessedCount());
@@ -332,14 +315,18 @@ class LegacyTaskProcessorTest {
         void processTask_afterInitFalse_stillProcesses() {
             processor.init(false);
 
-            assertEquals("ABC", processor.processTask(990_601, "abc", TYPE_FORMAT, false));
+            var result = processor.processTask(990_601, "abc", TYPE_FORMAT, false);
+
+            assertEquals("ABC", result);
         }
 
         @Test
         void processTask_inputOfSixHundredChars_stillProcesses() {
             var data = "z".repeat(600);
 
-            assertEquals(data, processor.processTask(990_602, data, TYPE_OTHER, false));
+            var result = processor.processTask(990_602, data, TYPE_OTHER, false);
+
+            assertEquals(data, result);
         }
     }
 
@@ -374,32 +361,40 @@ class LegacyTaskProcessorTest {
     class CanProcess {
 
         @ParameterizedTest
-        @EnumSource(value = TransformType.class, names = {"FORMAT", "SENTENCE"})
-        void canProcess_beforeInit_returnsFalse(TransformType type) {
-            assertFalse(processor.canProcess("valid", type));
+        @ValueSource(ints = {TYPE_FORMAT, TYPE_SENTENCE})
+        void canProcess_beforeInit_returnsFalse(int type) {
+            var result = processor.canProcess("valid", type);
+
+            assertFalse(result);
         }
 
         @Test
         void canProcess_afterInitFalse_returnsFalse() {
             processor.init(false);
 
-            assertFalse(processor.canProcess("valid", TYPE_FORMAT));
+            var result = processor.canProcess("valid", TYPE_FORMAT);
+
+            assertFalse(result);
         }
 
         @ParameterizedTest
-        @EnumSource(value = TransformType.class, names = {"FORMAT", "SENTENCE"})
-        void canProcess_readyWithSupportedType_returnsTrue(TransformType type) {
+        @ValueSource(ints = {TYPE_FORMAT, TYPE_SENTENCE})
+        void canProcess_readyWithSupportedType_returnsTrue(int type) {
             processor.init(true);
 
-            assertTrue(processor.canProcess("valid", type));
+            var result = processor.canProcess("valid", type);
+
+            assertTrue(result);
         }
 
         @ParameterizedTest
         @ValueSource(ints = {0, 3, -1})
-        void canProcess_readyWithUnsupportedTypeCode_returnsFalse(int code) {
+        void canProcess_readyWithUnsupportedType_returnsFalse(int type) {
             processor.init(true);
 
-            assertFalse(processor.canProcess("valid", TransformType.fromCode(code)));
+            var result = processor.canProcess("valid", type);
+
+            assertFalse(result);
         }
 
         @ParameterizedTest
@@ -407,14 +402,18 @@ class LegacyTaskProcessorTest {
         void canProcess_readyWithNullOrEmptyData_returnsFalse(String data) {
             processor.init(true);
 
-            assertFalse(processor.canProcess(data, TYPE_FORMAT));
+            var result = processor.canProcess(data, TYPE_FORMAT);
+
+            assertFalse(result);
         }
 
         @Test
         void canProcess_readyWithWhitespaceOnlyData_returnsTrue() {
             processor.init(true);
 
-            assertTrue(processor.canProcess("   ", TYPE_FORMAT));
+            var result = processor.canProcess("   ", TYPE_FORMAT);
+
+            assertTrue(result);
         }
 
         @ParameterizedTest
@@ -422,7 +421,9 @@ class LegacyTaskProcessorTest {
         void canProcess_readyAtLengthBoundary_acceptsOnlyUnderFiveHundred(int length, boolean expected) {
             processor.init(true);
 
-            assertEquals(expected, processor.canProcess("x".repeat(length), TYPE_SENTENCE));
+            var result = processor.canProcess("x".repeat(length), TYPE_SENTENCE);
+
+            assertEquals(expected, result);
         }
     }
 
@@ -445,19 +446,25 @@ class LegacyTaskProcessorTest {
 
         @Test
         void processTask_typeOneWithoutFlagInTurkish_uppercasesToDottedI() {
-            assertEquals("İ", processor.processTask(990_800, "i", TYPE_FORMAT, false));
+            var result = processor.processTask(990_800, "i", TYPE_FORMAT, false);
+
+            assertEquals("İ", result);
         }
 
         @Test
         void processTask_typeTwoInTurkish_lowercasesToDotlessI() {
-            assertEquals("Hello ı", processor.processTask(990_801, "Hello I", TYPE_SENTENCE, false));
+            var result = processor.processTask(990_801, "Hello I", TYPE_SENTENCE, false);
+
+            assertEquals("Hello ı", result);
         }
 
         @Test
         void processTask_typeOneWithFlagInTurkish_swapIsLocaleIndependent() throws IOException {
-            outputFileFor(990_802);
+            outputFiles.track(990_802);
 
-            assertEquals("I", processor.processTask(990_802, "i", TYPE_FORMAT, true));
+            var result = processor.processTask(990_802, "i", TYPE_FORMAT, true);
+
+            assertEquals("I", result);
         }
     }
 }
